@@ -12,6 +12,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
@@ -36,6 +37,8 @@ public class NamedContextFactoryTests {
 
 		Bar bar = factory.getInstance("bar", Bar.class);
 		assertThat("bar was null", bar, is(notNullValue()));
+
+		assertThat("context names not exposed", factory.getContextNames(), hasItems("foo", "bar"));
 
 		Bar foobar = factory.getInstance("foo", Bar.class);
 		assertThat("bar was not null", foobar, is(nullValue()));
@@ -70,13 +73,36 @@ public class NamedContextFactoryTests {
 		}
 	}
 
-	@Data
-	@NoArgsConstructor
-	@AllArgsConstructor
 	static class TestSpec implements NamedContextFactory.Specification {
 		private String name;
 
 		private Class<?>[] configuration;
+
+		public TestSpec() {
+		}
+
+		public TestSpec(String name, Class<?>[] configuration) {
+			this.name = name;
+			this.configuration = configuration;
+		}
+
+		@Override
+		public String getName() {
+			return name;
+		}
+
+		public void setName(String name) {
+			this.name = name;
+		}
+
+		@Override
+		public Class<?>[] getConfiguration() {
+			return configuration;
+		}
+
+		public void setConfiguration(Class<?>[] configuration) {
+			this.configuration = configuration;
+		}
 	}
 
 	static class BaseConfig {

@@ -17,6 +17,12 @@
 
 package org.springframework.cloud.autoconfigure;
 
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.beans.factory.support.BeanDefinitionBuilder;
+import org.springframework.beans.factory.support.BeanDefinitionRegistry;
+import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -24,11 +30,13 @@ import org.springframework.boot.autoconfigure.web.WebMvcAutoConfiguration;
 import org.springframework.cloud.context.environment.EnvironmentManager;
 import org.springframework.cloud.context.refresh.ContextRefresher;
 import org.springframework.cloud.context.scope.refresh.RefreshScope;
+import org.springframework.cloud.endpoint.event.RefreshEventListener;
 import org.springframework.cloud.logging.LoggingRebinder;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.stereotype.Component;
 
 /**
  * Autoconfiguration for the refresh scope and associated features to do with changes in
@@ -42,10 +50,24 @@ import org.springframework.core.env.ConfigurableEnvironment;
 @AutoConfigureAfter(WebMvcAutoConfiguration.class)
 public class RefreshAutoConfiguration {
 
-	@Bean
-	@ConditionalOnMissingBean
-	public static RefreshScope refreshScope() {
-		return new RefreshScope();
+	@Component
+	@ConditionalOnMissingBean(RefreshScope.class)
+	protected static class RefreshScopeConfiguration
+			implements BeanDefinitionRegistryPostProcessor {
+
+		@Override
+		public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory)
+				throws BeansException {
+		}
+
+		@Override
+		public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry)
+				throws BeansException {
+			registry.registerBeanDefinition("refreshScope",
+					BeanDefinitionBuilder.genericBeanDefinition(RefreshScope.class)
+							.setRole(BeanDefinition.ROLE_INFRASTRUCTURE)
+							.getBeanDefinition());
+		}
 	}
 
 	@Bean
@@ -65,6 +87,12 @@ public class RefreshAutoConfiguration {
 	public ContextRefresher contextRefresher(ConfigurableApplicationContext context,
 			RefreshScope scope) {
 		return new ContextRefresher(context, scope);
+	}
+
+	@Bean
+	public RefreshEventListener refreshEventListener(
+			ContextRefresher contextRefresher) {
+		return new RefreshEventListener(contextRefresher);
 	}
 
 }

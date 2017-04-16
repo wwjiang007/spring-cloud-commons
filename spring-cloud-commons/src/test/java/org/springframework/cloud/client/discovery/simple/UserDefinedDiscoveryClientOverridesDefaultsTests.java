@@ -1,36 +1,37 @@
-package org.springframework.cloud.client.discovery.noop;
-
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+package org.springframework.cloud.client.discovery.simple;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
-import org.springframework.boot.test.SpringApplicationConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.test.context.junit4.SpringRunner;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /**
- * Tests if @EnableDiscoveryClient is NOT used, then NoopDiscoveryClient is created.
- * @author Spencer Gibb
+ * @author Biju Kunjummen
  */
-@RunWith(SpringJUnit4ClassRunner.class)
-@SpringApplicationConfiguration(classes = NoopDiscoveryClientConfigurationAdditionalTests.App.class)
-public class NoopDiscoveryClientConfigurationAdditionalTests {
+@RunWith(SpringRunner.class)
+@SpringBootTest(classes = UserDefinedDiscoveryClientOverridesDefaultsTests.App.class)
+public class UserDefinedDiscoveryClientOverridesDefaultsTests {
 
 	@Autowired
 	DiscoveryClient discoveryClient;
 
 	@Test
 	public void testDiscoveryClientIsNotNoop() {
-		assertFalse("discoveryClient is wrong instance type", discoveryClient instanceof NoopDiscoveryClient);
+		assertThat(discoveryClient).isNotInstanceOf(SimpleDiscoveryClient.class);
+
+		assertThat(discoveryClient.description())
+				.isEqualTo("user defined discovery client");
 	}
 
 	@EnableAutoConfiguration
@@ -42,7 +43,7 @@ public class NoopDiscoveryClientConfigurationAdditionalTests {
 			return new DiscoveryClient() {
 				@Override
 				public String description() {
-					return null;
+					return "user defined discovery client";
 				}
 
 				@Override
