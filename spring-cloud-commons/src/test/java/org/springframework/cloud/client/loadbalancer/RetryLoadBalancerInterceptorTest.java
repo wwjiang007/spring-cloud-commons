@@ -16,7 +16,6 @@ import org.springframework.mock.http.client.MockClientHttpResponse;
 import org.springframework.retry.policy.NeverRetryPolicy;
 import org.springframework.retry.support.RetryTemplate;
 
-import static org.bouncycastle.crypto.tls.ConnectionEnd.client;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.Matchers.any;
@@ -131,6 +130,33 @@ public class RetryLoadBalancerInterceptorTest {
         assertThat(rsp, is(clientHttpResponse));
         verify(retryTemplate, times(1)).setRetryPolicy(eq(interceptorRetryPolicy));
         verify(lbRequestFactory).createRequest(request, body, execution);
+    }
+
+    @Test
+    public void interceptRetryOnStatusCode() throws Throwable {
+        HttpRequest request = mock(HttpRequest.class);
+        when(request.getURI()).thenReturn(new URI("http://foo"));
+        ClientHttpResponse clientHttpResponseNotFound = new MockClientHttpResponse(new byte[]{}, HttpStatus.NOT_FOUND);
+        ClientHttpResponse clientHttpResponseOk = new MockClientHttpResponse(new byte[]{}, HttpStatus.OK);
+        LoadBalancedRetryPolicy policy = mock(LoadBalancedRetryPolicy.class);
+        when(policy.retryableStatusCode(eq(HttpStatus.NOT_FOUND.value()))).thenReturn(true);
+        when(policy.canRetryNextServer(any(LoadBalancedRetryContext.class))).thenReturn(true);
+        InterceptorRetryPolicy interceptorRetryPolicy = new InterceptorRetryPolicy(request, policy, client,"foo");
+        LoadBalancedRetryPolicyFactory lbRetryPolicyFactory = mock(LoadBalancedRetryPolicyFactory.class);
+        when(lbRetryPolicyFactory.create(eq("foo"), any(ServiceInstanceChooser.class))).thenReturn(policy);
+        ServiceInstance serviceInstance = mock(ServiceInstance.class);
+        when(client.choose(eq("foo"))).thenReturn(serviceInstance);
+        when(client.execute(eq("foo"), eq(serviceInstance), any(LoadBalancerRequest.class))).
+                thenReturn(clientHttpResponseNotFound).thenReturn(clientHttpResponseOk);
+        lbProperties.setEnabled(true);
+        RetryLoadBalancerInterceptor interceptor = new RetryLoadBalancerInterceptor(client, retryTemplate, lbProperties, lbRetryPolicyFactory, lbRequestFactory);
+        byte[] body = new byte[]{};
+        ClientHttpRequestExecution execution = mock(ClientHttpRequestExecution.class);
+        ClientHttpResponse rsp = interceptor.intercept(request, body, execution);
+        verify(client, times(2)).execute(eq("foo"), eq(serviceInstance), any(LoadBalancerRequest.class));
+        assertThat(rsp, is(clientHttpResponseOk));
+        verify(retryTemplate, times(1)).setRetryPolicy(eq(interceptorRetryPolicy));
+        verify(lbRequestFactory, times(2)).createRequest(request, body, execution);
     }
 
     @Test
